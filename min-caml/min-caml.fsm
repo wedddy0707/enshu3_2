@@ -1,0 +1,23 @@
+case 0:
+  ori a_1,z_1,1
+  state <= state + 1 (Next)
+case 1:
+  ori b_2,z_1,2
+  state <= state + 1 (Next)
+case 2:
+  add  c_3,a_1,b_2
+  state <= state + 1 (Next)
+case 3:
+  sub  d_4,a_1,b_2
+  state <= state + 1 (Next)
+case 4:
+  beq   _,c_3,d_4
+  state <= (condition) ? 6 : 7 (Branch)
+case 4:
+  state <= 8 (Jump)
+case 6:
+  ori o_2,z_1,0
+  state <= 5 (Jump)
+case 7:
+  ori o_2,z_1,1
+  state <= 5 (Jump)

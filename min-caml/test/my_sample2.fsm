@@ -1,0 +1,58 @@
+0:
+  $a_3 <= $z_1 | 1
+  state <= state + 1 (Next)
+1:
+  $b_4 <= $z_1 | 10
+  state <= state + 1 (Next)
+2:
+  $c_5 <= $a_3 + $b_4
+  state <= state + 1 (Next)
+3:
+  $Ti1_10 <= $z_1 | 1
+  state <= state + 1 (Next)
+4:
+  $d_6 <= $a_3 + $Ti1_10
+  state <= state + 1 (Next)
+5:
+  $Ti2_9 <= $z_1 | 2
+  state <= state + 1 (Next)
+6:
+  $e_7 <= $b_4 + $Ti2_9
+  state <= state + 1 (Next)
+7:
+  $f_8 <= $d_6 + $e_7
+  state <= state + 1 (Next)
+8:
+  $o_2 <= $f_8 | $z_1
+  state <= 0 (Jump)
+
+
+
+
+
+
+0:
+  $a_3 <= $z_1 | 1
+  state <= state + 1 (Next)
+1:
+  $b_4 <= $z_1 | 10
+  state <= state + 1 (Next)
+2:
+  $Ti1_10 <= $z_1 | 1
+  $c_5 <= $a_3 + $b_4
+  state <= state + 1 (Next)
+3:
+  $d_6 <= $a_3 + $Ti1_10
+  state <= state + 1 (Next)
+4:
+  $Ti2_9 <= $z_1 | 2
+  state <= state + 1 (Next)
+5:
+  $e_7 <= $b_4 + $Ti2_9
+  state <= state + 1 (Next)
+6:
+  $f_8 <= $d_6 + $e_7
+  state <= state + 1 (Next)
+7:
+  $o_2 <= $f_8 | $z_1
+  state <= 0 (Jump)
