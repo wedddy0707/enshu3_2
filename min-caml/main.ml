@@ -1,4 +1,4 @@
-let limit = ref 0
+let limit = ref 100
 
 let rec iter n e =
   Format.eprintf "iteration %d@." n;
@@ -10,7 +10,7 @@ let rec iter n e =
 let lexbuf outchan l =
   Id.counter := 0;
   Typing.extenv := M.empty;
-  let Asm.Prog(_,_,virt) =
+  let Asm.Prog(_,fundefs,virt) =
     Virtual.f
       (Closure.f
          (iter !limit
@@ -19,14 +19,9 @@ let lexbuf outchan l =
                   (Typing.f
                      (Parser.exp Lexer.token l))))))
   in
-  let fsm = Asm2verilog.make_fsm virt     in
-  let fsm'= Asm2verilog.reduce_states fsm 
-  in
-  begin
-    Asm2verilog.print_fsm fsm;
-    print_string "\n\n\n\n\n\n";
-    Asm2verilog.print_fsm fsm'
-  end 
+  match fundefs with
+  | []   -> ()
+  | f::_ -> Verilog_emit.emit_function_module f
 
 let string s = lexbuf stdout (Lexing.from_string s)
 
