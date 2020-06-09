@@ -180,7 +180,7 @@ let rec emit_function_module (f:Asm.fundef) =
   let comb = Verilog_comb.make_comb (Id.genid "dummy") asm_comb in
   let fsm  = Verilog_seq.make_fsm {f with body = asm_seq}
   in
-  let L(name) = f.name
+  let Id.L(name) = f.name
   in
   begin
     Printf.printf "module %s\n" name;
