@@ -4,6 +4,8 @@ type id_or_imm = V of Id.t | C of int
 type transition =
   | Init
   | Next
+  | Call    of Id.t
+  | Wait    of Id.t
   | Recurse
   | Recover
   | Jump    of int
@@ -14,6 +16,13 @@ type transition =
 type state = {pc : int; assigns : ((Id.t * Id.t) list); trans : transition}
 
 type fsm = state list
+
+let instances_and_calls = ref []
+
+let      go_common_prefix = "go"
+let   valid_common_prefix = "valid"
+let ret_var_common_prefix = "ret_var"
+let ret_var = Id.genid ret_var_common_prefix
 
 (* Asm.t を順序回路にする部分と組合せ回路にする部分に分ける *)
 (* 返り値: (順序回路にする部分, 組合せ回路にする部分)       *)
@@ -79,10 +88,12 @@ let rec separate_seq_from_comb body =
             Asm.Let(xt,Asm.IfLE(s,t,seq1,seq2),seq), (merge comb1 (merge comb2 comb))
       end
 
-let ret_var = Id.genid "ret_var"
-
 let rec make_fsm (f:Asm.fundef) =
-  let rec make_fsm_ (f:Asm.fundef) dest curr_pc ret_pc = function
+  (*      
+   *      make_fsm_
+   *      - FSMを作る関数の本体.
+   *      - f : Asm.fundef は自由変数 *)
+  let rec make_fsm_ dest curr_pc ret_pc = function
     | Asm.Ans(exp) ->
         (match exp with
         | Asm.Mov(s) ->
@@ -91,23 +102,37 @@ let rec make_fsm (f:Asm.fundef) =
             ([q],curr_pc)
         | Asm.CallDir(Id.L(g),args,fargs)
         | Asm.CallCls(g,args,fargs) when f.name=Id.L(g) ->
-            let assigns1 = List.map2 (fun x -> fun y -> (x,y)) (f.args @ f.fargs) (args @ fargs) in
+            let assigns1 = List.map2 (fun x y -> (x,y)) (f.args @ f.fargs) (args @ fargs) in
             let assigns2 = [(dest,ret_var)] in
             let assigns3 = []
             in
             let q1 = {pc = curr_pc  ;assigns = assigns1;trans = Recurse     } in
             let q2 = {pc = curr_pc+1;assigns = assigns2;trans = Recover     } in
-            let q2 = {pc = curr_pc+2;assigns = assigns3;trans = Jump(ret_pc)}
+            let q3 = {pc = curr_pc+2;assigns = assigns3;trans = Jump(ret_pc)}
             in
-            ([q1;q2],curr_pc+2)
+            ([q1;q2;q3],curr_pc+2)
+        | Asm.CallDir(Id.L(g),args,fargs)
+        | Asm.CallCls(g,args,fargs) (* otherwise *) ->
+            let g_inst = Id.genid (g^"_inst")
+            in
+            let assigns1 = [] in
+            let assigns2 = [(dest,ret_var_common_prefix ^ "_" ^ g_inst)] in
+            let assigns3 = []
+            in
+            let q1 = {pc = curr_pc  ;assigns = assigns1;trans = Call(g_inst)} in
+            let q2 = {pc = curr_pc+1;assigns = assigns2;trans = Wait(g_inst)} in
+            let q3 = {pc = curr_pc+2;assigns = assigns3;trans = Jump(ret_pc)}
+            in
+            (instances_and_calls := (g_inst, exp) :: (!instances_and_calls));
+            ([q1;q2;q3],curr_pc+3)
         | Asm.IfEq(_,_,br1,br2)
         | Asm.IfLE(_,_,br1,br2)
         | Asm.IfGE(_,_,br1,br2) ->
             let      pc_to_join  = curr_pc + 1 in
             let      pc_if_true  = curr_pc + 2 in
-            let br1_fsm, max_pc1 = make_fsm_ f dest pc_if_true  pc_to_join br1 in
+            let br1_fsm, max_pc1 = make_fsm_ dest pc_if_true  pc_to_join br1 in
             let      pc_if_false = max_pc1 + 1 in
-            let br2_fsm, max_pc2 = make_fsm_ f dest pc_if_false pc_to_join br2
+            let br2_fsm, max_pc2 = make_fsm_ dest pc_if_false pc_to_join br2
             in
             let trans1 = match exp with
                          | IfEq(s,Asm.V(t),_,_) -> BEq(s,V(t),pc_if_true,pc_if_false)
@@ -132,23 +157,37 @@ let rec make_fsm (f:Asm.fundef) =
             ([q],curr_pc)
         | Asm.CallDir(Id.L(g),args,fargs)
         | Asm.CallCls(g,args,fargs) when f.name=Id.L(g) ->
-            let assigns1 = List.map2 (fun x -> fun y -> (x,y)) (f.args @ f.fargs) (args @ fargs) in
+            let assigns1 = List.map2 (fun x y -> (x,y)) (f.args @ f.fargs) (args @ fargs) in
             let assigns2 = [(dest,ret_var)]
             in
             let q1 = {pc = curr_pc  ;assigns = assigns1;trans = Recurse} in
             let q2 = {pc = curr_pc+1;assigns = assigns2;trans = Recover}
             in
-            let succ_fsm,succ_max_pc = make_fsm_ f dest (curr_pc+2) ret_pc succ
+            let succ_fsm,succ_max_pc = make_fsm_ dest (curr_pc+2) ret_pc succ
             in
+            ([q1;q2] @ succ_fsm, succ_max_pc)
+        | Asm.CallDir(Id.L(g),args,fargs)
+        | Asm.CallCls(g,args,fargs) (* otherwise *) ->
+            let g_inst = Id.genid (g^"_inst")
+            in
+            let assigns1 = [] in
+            let assigns2 = [(dest,ret_var_common_prefix ^ "_" ^ g_inst)]
+            in
+            let q1 = {pc = curr_pc  ;assigns = assigns1;trans = Call(g_inst)} in
+            let q2 = {pc = curr_pc+1;assigns = assigns2;trans = Wait(g_inst)}
+            in
+            let succ_fsm,succ_max_pc = make_fsm_ dest (curr_pc+2) ret_pc succ
+            in
+            (instances_and_calls := (g_inst, exp) :: (!instances_and_calls));
             ([q1;q2] @ succ_fsm, succ_max_pc)
         | Asm.IfEq(_,_,br1,br2)
         | Asm.IfLE(_,_,br1,br2)
         | Asm.IfGE(_,_,br1,br2) ->
             let      pc_to_join  = curr_pc + 1 in
             let      pc_if_true  = curr_pc + 2 in
-            let br1_fsm, max_pc1 = make_fsm_ f dest pc_if_true  pc_to_join br1 in
+            let br1_fsm, max_pc1 = make_fsm_ dest pc_if_true  pc_to_join br1 in
             let      pc_if_false = max_pc1 + 1 in
-            let br2_fsm, max_pc2 = make_fsm_ f dest pc_if_false pc_to_join br2
+            let br2_fsm, max_pc2 = make_fsm_ dest pc_if_false pc_to_join br2
             in
             let trans1 = match exp with
                          | IfEq(s,Asm.V(t),_,_) -> BEq(s,V(t),pc_if_true,pc_if_false)
@@ -162,14 +201,14 @@ let rec make_fsm (f:Asm.fundef) =
             let q1 = {pc = curr_pc   ;assigns = [];trans = trans1} in
             let q2 = {pc = pc_to_join;assigns = [];trans = trans2}
             in
-            let succ_fsm,succ_max_pc = make_fsm_ f dest (max_pc2 + 1) ret_pc succ
+            let succ_fsm,succ_max_pc = make_fsm_ dest (max_pc2 + 1) ret_pc succ
             in
             ([q1;q2] @ br1_fsm @ br2_fsm @ succ_fsm, max_pc2)
         )
   in
   let q0     = {pc = 0;assigns = [];trans = Init} in
   let fsm    ,
-      max_pc = make_fsm_ f ret_var 1 0 f.body
+      max_pc = make_fsm_ ret_var 1 0 f.body
   in
   q0 :: fsm
 

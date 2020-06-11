@@ -10,7 +10,7 @@ let rec iter n e =
 let lexbuf outchan l =
   Id.counter := 0;
   Typing.extenv := M.empty;
-  let Asm.Prog(_,fundefs,virt) =
+  let Asm.Prog(data,fundefs,body) =
     Virtual.f
       (Closure.f
          (iter !limit
@@ -19,9 +19,23 @@ let lexbuf outchan l =
                   (Typing.f
                      (Parser.exp Lexer.token l))))))
   in
-  match fundefs with
-  | []   -> ()
-  | f::_ -> Verilog_emit.emit_function_module f
+  let rec emit_fundefs fundefs =
+    match fundefs with
+    | []    -> ()
+    | f::gs ->
+        begin
+          Verilog_emit.emit_function_module f;
+          Printf.printf "\n\n";
+          emit_fundefs gs;
+        end
+  in
+  begin
+    emit_fundefs fundefs;
+    Verilog_emit.emit_main_module (Prog(data,fundefs,body))
+  end
+    
+
+
 
 let string s = lexbuf stdout (Lexing.from_string s)
 
