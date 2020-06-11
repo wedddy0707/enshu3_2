@@ -185,7 +185,7 @@ let rec emit_function_module (f:Asm.fundef) =
     ignore(List.map (fun x -> Printf.printf "  reg  [31:0] %s;\n"               x) regs);
     ignore(List.map (fun x -> Printf.printf "  reg  [31:0] %s_stack [100:0];\n" x) regs);
     Printf.printf "  reg  [31:0] pc;\n";
-    Printf.printf "  reg  [31:0] pc_stack;\n";
+    Printf.printf "  reg  [31:0] pc_stack [100:0];\n";
     Printf.printf "  reg  [31:0] stack_index;\n";
     Printf.printf "\n";
     emit_assigns_in_module comb;
