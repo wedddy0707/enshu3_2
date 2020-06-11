@@ -60,6 +60,7 @@ let def_sig : control_signal = {
 let zero         = Id.genid "z" (* ゼロレジスタ *)
 let final_output = Id.genid "o" (* 最終的な結果を出力するレジスタ *)
 
+
 let make_fsm x =
   let rec make_fsm_ pc dest ret_pc = function
     | Asm.Ans exp             ->
