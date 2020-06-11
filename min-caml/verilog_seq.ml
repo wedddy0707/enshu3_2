@@ -158,7 +158,7 @@ let rec make_fsm (f:Asm.fundef) =
         | Asm.CallDir(Id.L(g),args,fargs)
         | Asm.CallCls(g,args,fargs) when f.name=Id.L(g) ->
             let assigns1 = List.map2 (fun x y -> (x,y)) (f.args @ f.fargs) (args @ fargs) in
-            let assigns2 = [(dest,ret_var)]
+            let assigns2 = [(x,ret_var)]
             in
             let q1 = {pc = curr_pc  ;assigns = assigns1;trans = Recurse} in
             let q2 = {pc = curr_pc+1;assigns = assigns2;trans = Recover}
@@ -171,7 +171,7 @@ let rec make_fsm (f:Asm.fundef) =
             let g_inst = Id.genid (g^"_inst")
             in
             let assigns1 = [] in
-            let assigns2 = [(dest,ret_var_common_prefix ^ "_" ^ g_inst)]
+            let assigns2 = [(x,ret_var_common_prefix ^ "_" ^ g_inst)]
             in
             let q1 = {pc = curr_pc  ;assigns = assigns1;trans = Call(g_inst)} in
             let q2 = {pc = curr_pc+1;assigns = assigns2;trans = Wait(g_inst)}

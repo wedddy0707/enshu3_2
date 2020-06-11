@@ -1,7 +1,21 @@
 let rec extract_dests seq =
   match seq with
-  | Asm.Ans(_)            -> []
-  | Asm.Let((x,_),_,succ) -> x :: (extract_dests succ)
+  | Asm.Ans(exp)            ->
+      (match exp with
+      | IfEq(_,_,e1,e2)
+      | IfLE(_,_,e1,e2)
+      | IfGE(_,_,e1,e2) -> (extract_dests e1) @ (extract_dests e2)
+      | _               -> []
+      )
+  | Asm.Let((x,_),exp,succ) ->
+      x ::
+      (match exp with
+      | IfEq(_,_,e1,e2)
+      | IfLE(_,_,e1,e2)
+      | IfGE(_,_,e1,e2) -> (extract_dests e1) @ (extract_dests e2)
+      | _               -> []
+      ) @
+      (extract_dests succ)
 
 (* module 内での assign 文の場合 *)
 let rec emit_assigns_in_module comb =
