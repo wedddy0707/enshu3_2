@@ -19,7 +19,9 @@ verilog_seq.ml \
 verilog_emit.ml \
 main.mli main.ml
 
-TESTS = my_sample_fib
+TESTS = my_sample_fib \
+				my_sample_fib_twice \
+				my_sample_fun_calls_fun
 
 do_test: $(TESTS:%=test/%.sv)
 

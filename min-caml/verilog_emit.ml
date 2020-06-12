@@ -158,17 +158,51 @@ let emit_fsm_in_module args regs fsm =
     Printf.printf "      endcase\n";
   end
 
+let rec emit_module_instances name instances_and_calls =
+  match instances_and_calls with
+  | [] -> ()
+  | (Id.L(caller),inst,Asm.CallCls(     g ,args,fargs))::rest
+  | (Id.L(caller),inst,Asm.CallDir(Id.L(g),args,fargs))::rest when name = caller -> 
+      begin
+        Printf.printf "  %s %s (\n" g inst;
+        ignore (
+          List.map (fun x -> Printf.printf "    %s,\n" x) (args @ fargs)
+        );
+        Printf.printf "    %s,\n" (Verilog_seq.ret_var_common_prefix^"_"^inst);
+        Printf.printf "    %s,\n" (Verilog_seq.go_common_prefix^"_"^inst);
+        Printf.printf "    %s,\n" (Verilog_seq.valid_common_prefix^"_"^inst);
+        Printf.printf "    clk,\n";
+        Printf.printf "    rstn\n";
+        Printf.printf "  );\n";
+
+        emit_module_instances name rest;
+      end
+  | (_,inst,Asm.CallCls(     g ,args,fargs))::rest
+  | (_,inst,Asm.CallDir(Id.L(g),args,fargs))::rest (* otherwise *) -> 
+      begin
+        emit_module_instances name rest;
+      end
+  | _ -> failwith "dummy:this cannot be happen."
+
 let rec emit_function_module (f:Asm.fundef) =
+  let Id.L(name) = f.name
+  in
   let asm_seq  ,
       asm_comb = Verilog_seq.separate_seq_from_comb f.body
   in
   let comb = Verilog_comb.make_comb (Id.genid "dummy") asm_comb in
   let fsm  = Verilog_seq.make_fsm {f with body = asm_seq}
   in
-  let args = f.args @ f.fargs in
-  let regs = extract_dests asm_seq
+  let args = f.args @ f.fargs
   in
-  let Id.L(name) = f.name
+  let wires =
+    (List.fold_left (fun l (Id.L(n),x,_) ->l @ (if n=name then [Verilog_seq.valid_common_prefix^"_"^x] else [])) [] !(Verilog_seq.instances_and_calls))
+  in
+  let regs =
+    (extract_dests asm_seq)
+  in
+  let regs_without_stack =
+    (List.fold_left (fun l (Id.L(n),x,_) -> l @ (if n=name then [Verilog_seq.go_common_prefix^"_"^x] else [])) [] !(Verilog_seq.instances_and_calls))
   in
   begin
     Printf.printf "module %s\n" name;
@@ -182,8 +216,10 @@ let rec emit_function_module (f:Asm.fundef) =
     Printf.printf ");\n";
     ignore(List.map (fun x -> Printf.printf "  reg  [31:0] %s;\n"               x) args);
     ignore(List.map (fun x -> Printf.printf "  reg  [31:0] %s_stack [100:0];\n" x) args);
-    ignore(List.map (fun x -> Printf.printf "  reg  [31:0] %s;\n"               x) regs);
+    ignore(List.map (fun x -> Printf.printf "  reg  [31:0] %s;\n"               x)(regs @ regs_without_stack));
     ignore(List.map (fun x -> Printf.printf "  reg  [31:0] %s_stack [100:0];\n" x) regs);
+    Printf.printf "\n";
+    ignore(List.map (fun x -> Printf.printf "  wire [31:0] %s;\n" x) wires);
     Printf.printf "  reg  [31:0] pc;\n";
     Printf.printf "  reg  [31:0] pc_stack [100:0];\n";
     Printf.printf "  reg  [31:0] stack_index;\n";
@@ -202,29 +238,10 @@ let rec emit_function_module (f:Asm.fundef) =
     Printf.printf "    end\n";
     Printf.printf "  end\n";
     Printf.printf "\n";
+    emit_module_instances name !(Verilog_seq.instances_and_calls);
     Printf.printf "endmodule\n";
   end
 
-let rec emit_module_instances instances_and_calls =
-  match instances_and_calls with
-  | [] -> ()
-  | (inst,Asm.CallCls(     g ,args,fargs))::rest
-  | (inst,Asm.CallDir(Id.L(g),args,fargs))::rest -> 
-      begin
-        Printf.printf "  %s %s (\n" g inst;
-        ignore (
-          List.map (fun x -> Printf.printf "    %s,\n" x) (args @ fargs)
-        );
-        Printf.printf "    %s,\n" (Verilog_seq.ret_var_common_prefix^"_"^inst);
-        Printf.printf "    %s,\n" (Verilog_seq.go_common_prefix^"_"^inst);
-        Printf.printf "    %s,\n" (Verilog_seq.valid_common_prefix^"_"^inst);
-        Printf.printf "    clk,\n";
-        Printf.printf "    rstn\n";
-        Printf.printf "  );\n";
-
-        emit_module_instances rest;
-      end
-  | _ -> failwith "dummy:this cannot be happen."
 
 let emit_main_module (Asm.Prog(data,fundefs,body)) =
   let asm_seq  ,
@@ -234,11 +251,11 @@ let emit_main_module (Asm.Prog(data,fundefs,body)) =
   let fsm  = Verilog_seq.make_fsm {name=Id.L("main");args=[];fargs=[];body=asm_seq;ret=Type.Int}
   in
   let wires =
-    (List.map (fun x -> Verilog_seq.valid_common_prefix^"_"^(fst x)) !(Verilog_seq.instances_and_calls))
+    (List.map (fun (_,x,_) -> Verilog_seq.valid_common_prefix^"_"^x) !(Verilog_seq.instances_and_calls))
   in
   let regs =
     (extract_dests asm_seq) @
-    (List.map (fun x -> Verilog_seq.go_common_prefix^"_"^(fst x)) !(Verilog_seq.instances_and_calls))
+    (List.map (fun (_,x,_) -> Verilog_seq.go_common_prefix^"_"^x) !(Verilog_seq.instances_and_calls))
   in
   begin
     Printf.printf "module main\n";
@@ -267,11 +284,11 @@ let emit_main_module (Asm.Prog(data,fundefs,body)) =
     Printf.printf "      pc          <= 0;\n";
     Printf.printf "      pc_stack[0] <= 0;\n";
     Printf.printf "    end else begin\n";
-    ignore(List.map (fun x -> Printf.printf "      %s <= 0;\n" (Verilog_seq.go_common_prefix^"_"^fst(x))) !(Verilog_seq.instances_and_calls));
+    ignore(List.map (fun (_,x,_) -> Printf.printf "      %s <= 0;\n" (Verilog_seq.go_common_prefix^"_"^x)) !(Verilog_seq.instances_and_calls));
     emit_fsm_in_module [] regs fsm;
     Printf.printf "    end\n";
     Printf.printf "  end\n";
     Printf.printf "\n";
-    emit_module_instances !(Verilog_seq.instances_and_calls);
+    emit_module_instances "main" !(Verilog_seq.instances_and_calls);
     Printf.printf "endmodule\n";
   end
