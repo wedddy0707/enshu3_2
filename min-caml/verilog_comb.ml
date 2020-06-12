@@ -15,6 +15,10 @@ type t =
   | Return of Id.t * exp
   | Assign of Id.t * exp * t
 
+let rec comb_merge comb1 comb2 =
+  match comb1 with
+  | Return(d,exp)      -> Assign(d,exp,comb2)
+  | Assign(d,exp,succ) -> Assign(d,exp,(comb_merge succ comb2))
 
 let rec make_comb ret_var body =
   match body with
@@ -45,15 +49,19 @@ let rec make_comb ret_var body =
           begin
             let br1_ret_var = Id.genid "br1" in
             let br2_ret_var = Id.genid "br2" in
-            let br1_seq = make_comb br1_ret_var br1 in
-            let br2_seq = make_comb br2_ret_var br2 in
-            Return (
-              ret_var,
-              IfEq (
-                s,
-                (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
-                br1_ret_var,
-                br2_ret_var
+            let br1_comb    = make_comb br1_ret_var br1 in
+            let br2_comb    = make_comb br2_ret_var br2 in
+            comb_merge br1_comb (
+              comb_merge br2_comb (
+                Return (
+                  ret_var,
+                  IfEq (
+                    s,
+                    (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
+                    br1_ret_var,
+                    br2_ret_var
+                  )
+                )
               )
             )
           end
@@ -61,15 +69,19 @@ let rec make_comb ret_var body =
           begin
             let br1_ret_var = Id.genid "br1" in
             let br2_ret_var = Id.genid "br2" in
-            let br1_seq = make_comb br1_ret_var br1 in
-            let br2_seq = make_comb br2_ret_var br2 in
-            Return (
-              ret_var,
-              IfLE (
-                s,
-                (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
-                br1_ret_var,
-                br2_ret_var
+            let br1_comb    = make_comb br1_ret_var br1 in
+            let br2_comb    = make_comb br2_ret_var br2 in
+            comb_merge br1_comb (
+              comb_merge br2_comb (
+                Return (
+                  ret_var,
+                  IfLE (
+                    s,
+                    (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
+                    br1_ret_var,
+                    br2_ret_var
+                  )
+                )
               )
             )
           end
@@ -77,18 +89,23 @@ let rec make_comb ret_var body =
           begin
             let br1_ret_var = Id.genid "br1" in
             let br2_ret_var = Id.genid "br2" in
-            let br1_seq = make_comb br1_ret_var br1 in
-            let br2_seq = make_comb br2_ret_var br2 in
-            Return (
-              ret_var,
-              IfLE (
-                s,
-                (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
-                br1_ret_var,
-                br2_ret_var
+            let br1_comb    = make_comb br1_ret_var br1 in
+            let br2_comb    = make_comb br2_ret_var br2 in
+            comb_merge br1_comb (
+              comb_merge br2_comb (
+                Return (
+                  ret_var,
+                  IfGE (
+                    s,
+                    (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
+                    br1_ret_var,
+                    br2_ret_var
+                  )
+                )
               )
             )
           end
+      | _ -> failwith "I hope this cannot be happen"
       )
   | Asm.Let((x,_),exp,succ) -> (* Asm.Ans(exp) とほとんど同じことをする *)
       (match exp with
@@ -117,15 +134,20 @@ let rec make_comb ret_var body =
           begin
             let br1_ret_var = Id.genid "br1" in
             let br2_ret_var = Id.genid "br2" in
-            let br1_seq = make_comb br1_ret_var br1 in
-            let br2_seq = make_comb br2_ret_var br2 in
-            Return (
-              ret_var,
-              IfEq (
-                s,
-                (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
-                br1_ret_var,
-                br2_ret_var
+            let br1_comb    = make_comb br1_ret_var br1 in
+            let br2_comb    = make_comb br2_ret_var br2 in
+            comb_merge br1_comb (
+              comb_merge br2_comb (
+                Assign (
+                  x,
+                  IfEq (
+                    s,
+                    (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
+                    br1_ret_var,
+                    br2_ret_var
+                  ),
+                  (make_comb ret_var succ)
+                )
               )
             )
           end
@@ -133,40 +155,45 @@ let rec make_comb ret_var body =
           begin
             let br1_ret_var = Id.genid "br1" in
             let br2_ret_var = Id.genid "br2" in
-            let br1_seq = make_comb br1_ret_var br1 in
-            let br2_seq = make_comb br2_ret_var br2 in
-            Assign (
-              x,
-              IfLE (
-                s,
-                (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
-                br1_ret_var,
-                br2_ret_var
-              ),
-              (make_comb ret_var succ)
+            let br1_comb    = make_comb br1_ret_var br1 in
+            let br2_comb    = make_comb br2_ret_var br2 in
+            comb_merge br1_comb (
+              comb_merge br2_comb (
+                Assign (
+                  x,
+                  IfLE (
+                    s,
+                    (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
+                    br1_ret_var,
+                    br2_ret_var
+                  ),
+                  (make_comb ret_var succ)
+                )
+              )
             )
           end
       | Asm.IfGE(s,t,br1,br2) ->
           begin
             let br1_ret_var = Id.genid "br1" in
             let br2_ret_var = Id.genid "br2" in
-            let br1_seq = make_comb br1_ret_var br1 in
-            let br2_seq = make_comb br2_ret_var br2 in
-            Assign (
-              x,
-              IfLE (
-                s,
-                (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
-                br1_ret_var,
-                br2_ret_var
-              ),
-              (make_comb ret_var succ)
+            let br1_comb    = make_comb br1_ret_var br1 in
+            let br2_comb    = make_comb br2_ret_var br2 in
+            comb_merge br1_comb (
+              comb_merge br2_comb (
+                Assign (
+                  x,
+                  IfGE (
+                    s,
+                    (match t with Asm.V(v)->V(v)|Asm.C(c)->C(c)),
+                    br1_ret_var,
+                    br2_ret_var
+                  ),
+                  (make_comb ret_var succ)
+                )
+              )
             )
           end
+      | _ -> failwith "I hope this cannot be happen"
       )
 
-let rec comb_merge comb1 comb2 =
-  match comb1 with
-  | Return(d,exp)      -> Assign(d,exp,comb2)
-  | Assign(d,exp,succ) -> Assign(d,exp,(comb_merge succ comb2))
 
