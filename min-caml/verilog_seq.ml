@@ -136,12 +136,12 @@ let rec make_fsm (f:Asm.fundef) =
             let br2_fsm, max_pc2 = make_fsm_ dest pc_if_false pc_to_join br2
             in
             let trans1 = match exp with
-                         | IfEq(s,Asm.V(t),_,_) -> BEq(s,V(t),pc_if_true,pc_if_false)
-                         | IfLE(s,Asm.V(t),_,_) -> BLE(s,V(t),pc_if_true,pc_if_false)
-                         | IfGE(s,Asm.V(t),_,_) -> BGE(s,V(t),pc_if_true,pc_if_false)
-                         | IfEq(s,Asm.C(i),_,_) -> BEq(s,C(i),pc_if_true,pc_if_false)
-                         | IfLE(s,Asm.C(i),_,_) -> BLE(s,C(i),pc_if_true,pc_if_false)
-                         | IfGE(s,Asm.C(i),_,_) -> BGE(s,C(i),pc_if_true,pc_if_false) in
+                         | Asm.IfEq(s,Asm.V(t),_,_) -> BEq(s,V(t),pc_if_true,pc_if_false)
+                         | Asm.IfLE(s,Asm.V(t),_,_) -> BLE(s,V(t),pc_if_true,pc_if_false)
+                         | Asm.IfGE(s,Asm.V(t),_,_) -> BGE(s,V(t),pc_if_true,pc_if_false)
+                         | Asm.IfEq(s,Asm.C(i),_,_) -> BEq(s,C(i),pc_if_true,pc_if_false)
+                         | Asm.IfLE(s,Asm.C(i),_,_) -> BLE(s,C(i),pc_if_true,pc_if_false)
+                         | Asm.IfGE(s,Asm.C(i),_,_) -> BGE(s,C(i),pc_if_true,pc_if_false) in
             let trans2 = Jump(ret_pc)
             in
             let q1 = {pc = curr_pc   ;assigns = [];trans = trans1} in
@@ -191,12 +191,12 @@ let rec make_fsm (f:Asm.fundef) =
             let br2_fsm, max_pc2 = make_fsm_ dest pc_if_false pc_to_join br2
             in
             let trans1 = match exp with
-                         | IfEq(s,Asm.V(t),_,_) -> BEq(s,V(t),pc_if_true,pc_if_false)
-                         | IfLE(s,Asm.V(t),_,_) -> BLE(s,V(t),pc_if_true,pc_if_false)
-                         | IfGE(s,Asm.V(t),_,_) -> BGE(s,V(t),pc_if_true,pc_if_false)
-                         | IfEq(s,Asm.C(i),_,_) -> BEq(s,C(i),pc_if_true,pc_if_false)
-                         | IfLE(s,Asm.C(i),_,_) -> BLE(s,C(i),pc_if_true,pc_if_false)
-                         | IfGE(s,Asm.C(i),_,_) -> BGE(s,C(i),pc_if_true,pc_if_false) in
+                         | Asm.IfEq(s,Asm.V(t),_,_) -> BEq(s,V(t),pc_if_true,pc_if_false)
+                         | Asm.IfLE(s,Asm.V(t),_,_) -> BLE(s,V(t),pc_if_true,pc_if_false)
+                         | Asm.IfGE(s,Asm.V(t),_,_) -> BGE(s,V(t),pc_if_true,pc_if_false)
+                         | Asm.IfEq(s,Asm.C(i),_,_) -> BEq(s,C(i),pc_if_true,pc_if_false)
+                         | Asm.IfLE(s,Asm.C(i),_,_) -> BLE(s,C(i),pc_if_true,pc_if_false)
+                         | Asm.IfGE(s,Asm.C(i),_,_) -> BGE(s,C(i),pc_if_true,pc_if_false) in
             let trans2 = Jump(max_pc2 + 1)
             in
             let q1 = {pc = curr_pc   ;assigns = [];trans = trans1} in
