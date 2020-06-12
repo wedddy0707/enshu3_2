@@ -1,6 +1,7 @@
 (* 再帰関数を順序回路にするのが目標 *)
 
 type id_or_imm = V of Id.t | C of int
+
 type transition =
   | Init
   | Next
@@ -123,7 +124,7 @@ let rec make_fsm (f:Asm.fundef) =
             let q2 = {pc = curr_pc+1;assigns = assigns2;trans = Wait(g_inst)} in
             let q3 = {pc = curr_pc+2;assigns = assigns3;trans = Jump(ret_pc)}
             in
-            (instances_and_calls := (g_inst, exp) :: (!instances_and_calls));
+            (instances_and_calls := (f.name,g_inst, exp) :: (!instances_and_calls));
             ([q1;q2;q3],curr_pc+3)
         | Asm.IfEq(_,_,br1,br2)
         | Asm.IfLE(_,_,br1,br2)
@@ -178,7 +179,7 @@ let rec make_fsm (f:Asm.fundef) =
             in
             let succ_fsm,succ_max_pc = make_fsm_ dest (curr_pc+2) ret_pc succ
             in
-            (instances_and_calls := (g_inst, exp) :: (!instances_and_calls));
+            (instances_and_calls := (f.name, g_inst, exp) :: (!instances_and_calls));
             ([q1;q2] @ succ_fsm, succ_max_pc)
         | Asm.IfEq(_,_,br1,br2)
         | Asm.IfLE(_,_,br1,br2)

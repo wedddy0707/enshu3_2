@@ -29,9 +29,17 @@ let lexbuf outchan l =
           emit_fundefs gs;
         end
   in
+  let pseudo_main_def : Asm.fundef = {
+    name=Id.L("main");
+    args=[];
+    fargs=[];
+    body=body;
+    ret=Type.Int;
+  }
+  in
   begin
-    emit_fundefs fundefs;
-    Verilog_emit.emit_main_module (Prog(data,fundefs,body))
+    (*Verilog_emit.emit_main_module (Prog(data,fundefs,body))*)
+    emit_fundefs (pseudo_main_def :: fundefs);
   end
     
 
